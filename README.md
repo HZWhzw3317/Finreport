@@ -77,10 +77,6 @@ uvicorn app.main:app --reload --port 8000
 C:\Users\hzw999\anaconda3\envs\finreport\python.exe -m uvicorn app.main:app --reload --port 8000
 ```
 
-文档：http://127.0.0.1:8000/docs （根路径 `/` 会自动跳转到这里）
-
-> 若 `/docs` 白屏，通常是浏览器无法访问默认的 `cdn.jsdelivr.net`。项目已改用国内可访问的 CDN（bootcdn/unpkg），可在 `.env` 用 `SWAGGER_JS_URL` / `SWAGGER_CSS_URL` / `REDOC_JS_URL` 覆盖；`/redoc` 为 ReDoc 文档。
-
 ### 主要接口
 
 | 方法 | 路径 | 说明 |
