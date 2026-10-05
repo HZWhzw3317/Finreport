@@ -1,0 +1,20 @@
+[project]
+name = "finreport"
+version = "0.1.0"
+description = "A 股上市公司财报 PDF 批量提取入库"
+requires-python = ">=3.11"
+
+# aerich 迁移工具配置：
+#   tortoise_orm  指向 ORM 配置对象（app/db.py 中的 TORTOISE_ORM）
+#   location      迁移文件存放目录
+#   src_folder    源码根目录
+# 常用命令：aerich init-db / aerich migrate / aerich upgrade
+[tool.aerich]
+tortoise_orm = "app.db.TORTOISE_ORM"
+location = "./migrations"
+src_folder = "./."
+
+# pytest 配置：启用 asyncio 自动模式（无需给每个异步用例加 @pytest.mark.asyncio）
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

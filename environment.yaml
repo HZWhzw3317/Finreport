@@ -1,0 +1,28 @@
+# ========================================
+# Conda 环境配置文件
+# 用途: 上市公司财报 PDF 批量提取入库项目
+# 使用方法: conda env create -f environment.yaml
+# ========================================
+name: finreport
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+    - fastapi>=0.110.0
+    - uvicorn[standard]>=0.29.0
+    - tortoise-orm>=0.21.0
+    - asyncmy>=0.2.9
+    - aerich>=0.7.2
+    - pydantic>=2.0.0
+    - pydantic-settings>=2.2.0
+    - python-dotenv>=1.0.0
+    - httpx>=0.27.0
+    - tenacity>=8.2.0
+    - pdfplumber>=0.11.0
+    - pymupdf>=1.24.0
+    - openai>=1.30.0
+    - pytest>=8.0.0
+    - pytest-asyncio>=0.23.0

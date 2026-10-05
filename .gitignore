@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# 虚拟环境
+.venv/
+venv/
+
+# 配置与密钥
+.env
+
+# 数据与产物
+data/pdfs/
+data/*.db
+*.sqlite3
+
+# aerich 迁移（按需取消忽略）
+# migrations/
+
+# IDE
+.idea/
+.vscode/
