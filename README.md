@@ -71,10 +71,14 @@ conda activate finreport
 uvicorn app.main:app --reload --port 8000
 ```
 
-若未初始化 conda 到当前终端，可直接用该环境的解释器：
+若未在 conda 环境内，也可用 `conda run` 或该环境的解释器直接启动：
 
 ```bash
-C:\Users\hzw999\anaconda3\envs\finreport\python.exe -m uvicorn app.main:app --reload --port 8000
+# 方式一：conda run（无需手动激活）
+conda run -n finreport uvicorn app.main:app --reload --port 8000
+
+# 方式二：直接用该环境的 python（将 <PYTHON> 换成你的环境解释器路径）
+<PYTHON> -m uvicorn app.main:app --reload --port 8000
 ```
 
 ### 主要接口
