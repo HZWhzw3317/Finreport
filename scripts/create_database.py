@@ -13,56 +13,19 @@
 import asyncio
 import sys
 from pathlib import Path
-from urllib.parse import parse_qs, unquote, urlparse
-
-import asyncmy
 
 # 把项目根目录加入 sys.path，保证脚本可直接以 `python scripts/xxx.py` 运行
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.config import settings  # noqa: E402  (需在 sys.path 设置后导入)
-
-
-def _parse_url(url: str) -> dict:
-    """解析 SQLAlchemy/Tortoise 风格的 MySQL 连接串。
-
-    兼容用户名/密码中的 URL 编码（如 %40 表示 @）。
-    """
-    parsed = urlparse(url)
-    if not parsed.path or parsed.path == "/":
-        raise SystemExit("DATABASE_URL 缺少数据库名，形如 mysql://user:pass@host:3306/dbname")
-    dbname = parsed.path.lstrip("/")
-    query = parse_qs(parsed.query)  # 解析 ?charset=utf8mb4
-    return {
-        "host": parsed.hostname or "127.0.0.1",
-        "port": parsed.port or 3306,
-        "user": unquote(parsed.username or ""),
-        "password": unquote(parsed.password or ""),
-        "dbname": unquote(dbname),
-        "charset": query.get("charset", ["utf8mb4"])[0],
-    }
+from app.db import create_database, parse_mysql_url  # noqa: E402
 
 
 async def main() -> None:
     """连接 MySQL（不指定库）并创建目标数据库。"""
-    cfg = _parse_url(settings.database_url)
-    # 注意：这里不传 database 参数，因为目标是“创建”这个库
-    conn = await asyncmy.connect(
-        host=cfg["host"],
-        port=cfg["port"],
-        user=cfg["user"],
-        password=cfg["password"],
-    )
-    try:
-        async with conn.cursor() as cur:
-            await cur.execute(
-                f"CREATE DATABASE IF NOT EXISTS `{cfg['dbname']}` "
-                f"CHARACTER SET {cfg['charset']} COLLATE {cfg['charset']}_general_ci"
-            )
-        await conn.commit()
-        print(f"数据库已就绪: {cfg['dbname']} (charset={cfg['charset']})")
-    finally:
-        conn.close()
+    cfg = parse_mysql_url(settings.database_url)
+    await create_database(settings.database_url)
+    print(f"数据库已就绪: {cfg['dbname']} (charset={cfg['charset']})")
 
 
 if __name__ == "__main__":

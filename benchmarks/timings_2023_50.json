@@ -1,0 +1,9 @@
+{
+  "meta": {
+    "timings": {
+      "parse_s": 820.0,
+      "parse_per_report_s": 37.3
+    },
+    "timings_note": "效率口径：22 份复跑（含 LLM 缓存命中）耗时 820s，平均 37.3s/份；5 家冷启动冒烟平均 83.9s/份。"
+  }
+}

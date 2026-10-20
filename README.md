@@ -11,6 +11,28 @@ A 股上市公司财报 PDF 批量提取入库系统。数据来自巨潮资讯�
 - 规则解析不达标时，调用 `deepseek-flash`（视觉）渲染页面兜底，合并结果并标注置信度
 - 幂等入库，支持 job 管理、待人工复核标记
 
+## 评测结果（2023 年报，50 家）
+
+独立评测库 `finreport_bench` + 独立 PDF 目录 `data/pdfs_bench/`，不写入生产库。
+样本为 50 家 A 股（主板 29 / 创业板 11 / 科创板 6 / 北交所 4，含 5 家金融），
+固定随机种子，名单见 [`benchmarks/companies_2023.txt`](benchmarks/companies_2023.txt)。
+
+| 指标 | 结果 |
+| --- | ---: |
+| 年报 / PDF 下载 | 50 份 / 100% |
+| 报表 / 科目 | 293 张 / 7,558 条 |
+| 规则独立完成率 | **64.16%**（188/293） |
+| LLM 兜底参与率 | **35.84%**（105/293） |
+| 最终通过率 | **90.00%**（45/50） |
+| 平均置信度 | **0.97**（中位数 1.0） |
+| 核心科目覆盖率 | **91.13%** |
+| 勾稽通过率（BS / IS / CF） | **100% / 100% / 100%** |
+| 单份年报平均解析 | 37.3s（复跑，含缓存） |
+
+方法与完整指标见 [`benchmarks/README.md`](benchmarks/README.md) 和
+[`benchmarks/report_2023_50.md`](benchmarks/report_2023_50.md)。
+5 份报告因特殊版式或数据缺失进入人工复核，被正确标记为 `needs_review`，未误判为通过。
+
 ## 环境安装
 
 ```bash
@@ -60,6 +82,16 @@ python scripts/crawl.py --codes 000001,002594,600519 --years 2023 --parse
 python scripts/parse.py --report-id 12
 python scripts/parse.py --codes 000001 --years 2023 --no-llm     # 关闭兜底
 python scripts/parse.py --codes 000001 --years 2023 --force-llm  # 强制大模型
+```
+
+### 可复现评测
+
+```bash
+# 独立库 finreport_bench + data/pdfs_bench，不影响生产库
+python scripts/benchmark.py run --limit 50 --year 2023 --financial 5 --recreate
+
+# 只重算指标
+python scripts/benchmark.py metrics --year 2023 --limit 50
 ```
 
 ## 启动服务
@@ -136,7 +168,8 @@ app/
     crawler/cninfo.py      巨潮采集
     extractor/             定位/规则解析/归一化/校验/LLM兜底
     pipeline.py            编排
-scripts/             初始化与 CLI
+scripts/             初始化、CLI 与评测脚本
 data/pdfs/           PDF 归档
+benchmarks/         评测样本、指标报告与方法说明
 tests/               单元测试
 ```

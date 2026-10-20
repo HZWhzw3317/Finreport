@@ -12,7 +12,7 @@ venv/
 .env
 
 # 数据与产物
-data/pdfs/
+data/pdfs*/
 data/*.db
 *.sqlite3
 

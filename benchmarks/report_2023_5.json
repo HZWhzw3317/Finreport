@@ -1,0 +1,146 @@
+{
+  "meta": {
+    "db_name": "finreport_bench",
+    "year": 2023,
+    "limit": 5,
+    "llm_enabled": true,
+    "generated_at": "2026-10-20T13:43:33+08:00",
+    "pdf_dir": "./data/pdfs_bench",
+    "timings": {
+      "setup_s": 0.45,
+      "bootstrap_s": 14.8,
+      "sample_s": 0.02,
+      "sync_s": 2.31,
+      "download_s": 9.35,
+      "parse_s": 419.46,
+      "parse_per_report_s": 83.89,
+      "metrics_s": 0.01,
+      "total_s": 446.42
+    },
+    "seed": 42,
+    "financial_target": 1
+  },
+  "sample": {
+    "planned_limit": 5,
+    "companies": 5,
+    "by_market": {
+      "主板": 3,
+      "创业板": 1,
+      "科创板": 1
+    },
+    "financial_companies": 1
+  },
+  "scale": {
+    "companies": 5,
+    "reports": 5,
+    "downloaded": 5,
+    "parsed": 5,
+    "statements": 30,
+    "items": 786,
+    "distinct_item_codes": 97,
+    "derived_items": 0,
+    "avg_items_per_statement": 26.2,
+    "pdf_bytes_db": 22635240,
+    "pdf_bytes_disk": 48930499,
+    "db_bytes": 2260992,
+    "llm_cache_rows": 12
+  },
+  "reports": {
+    "total": 5,
+    "downloaded": 5,
+    "parsed": 5,
+    "passed": 5,
+    "needs_review": 0,
+    "failed": 0,
+    "download_rate": 100.0,
+    "parse_rate": 100.0
+  },
+  "statements": {
+    "total": 30,
+    "by_type": {
+      "bs/consolidated": {
+        "total": 5,
+        "rule": 4,
+        "llm": 1
+      },
+      "bs/parent": {
+        "total": 5,
+        "rule": 4,
+        "llm": 1
+      },
+      "cf/consolidated": {
+        "total": 5,
+        "rule": 4,
+        "llm": 1
+      },
+      "cf/parent": {
+        "total": 5,
+        "rule": 4,
+        "llm": 1
+      },
+      "is/consolidated": {
+        "total": 5,
+        "rule": 1,
+        "llm": 4
+      },
+      "is/parent": {
+        "total": 5,
+        "rule": 1,
+        "llm": 4
+      }
+    }
+  },
+  "quality": {
+    "rule_statements": 18,
+    "llm_statements": 12,
+    "rule_rate": 60.0,
+    "llm_rate": 40.0,
+    "final_pass_rate": 100.0,
+    "needs_review_rate": 0.0,
+    "core_coverage_avg": 92.0,
+    "core_coverage_min": 80.0,
+    "core_coverage_gte_80": 100.0,
+    "confidence": {
+      "avg": 1.0,
+      "median": 1.0,
+      "p25": 1.0,
+      "p75": 1.0,
+      "min": 1.0,
+      "max": 1.0,
+      "gte_0_8": 5,
+      "count": 5
+    },
+    "checks": {
+      "bs": {
+        "checked": 6,
+        "passed": 6,
+        "failed": 0,
+        "incomplete": 4,
+        "raw_checked": 6,
+        "raw_passed": 6,
+        "pass_rate": 100.0,
+        "raw_pass_rate": 100.0
+      },
+      "is": {
+        "checked": 10,
+        "passed": 10,
+        "failed": 0,
+        "incomplete": 0,
+        "raw_checked": 10,
+        "raw_passed": 10,
+        "pass_rate": 100.0,
+        "raw_pass_rate": 100.0
+      },
+      "cf": {
+        "checked": 6,
+        "passed": 6,
+        "failed": 0,
+        "incomplete": 4,
+        "raw_checked": 6,
+        "raw_passed": 6,
+        "pass_rate": 100.0,
+        "raw_pass_rate": 100.0
+      }
+    }
+  }
+}

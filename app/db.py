@@ -5,6 +5,8 @@ lifespan 启动阶段调用 :func:`init_db`，关闭阶段调用 :func:`close_db
 命令行脚本则在 ``asyncio.run`` 中成对调用。
 """
 
+from urllib.parse import parse_qs, unquote, urlparse
+
 from tortoise import Tortoise
 
 from app.config import settings
@@ -22,6 +24,86 @@ TORTOISE_ORM = {
         }
     },
 }
+
+
+def parse_mysql_url(url: str) -> dict:
+    """解析 Tortoise/MySQL 连接串，返回连接参数。
+
+    兼容用户名/密码中的 URL 编码（如 ``%40`` 表示 ``@``），并读取
+    ``?charset=`` 查询参数。供建库、删库与评测脚本复用。
+    """
+    parsed = urlparse(url)
+    if not parsed.path or parsed.path == "/":
+        raise ValueError("DATABASE_URL 缺少数据库名，形如 mysql://user:pass@host:3306/dbname")
+    query = parse_qs(parsed.query)
+    return {
+        "host": parsed.hostname or "127.0.0.1",
+        "port": parsed.port or 3306,
+        "user": unquote(parsed.username or ""),
+        "password": unquote(parsed.password or ""),
+        "dbname": unquote(parsed.path.lstrip("/")),
+        "charset": query.get("charset", ["utf8mb4"])[0],
+    }
+
+
+def _quote_ident(name: str) -> str:
+    """转义 MySQL 标识符（数据库名）中的反引号。"""
+    return "`" + name.replace("`", "``") + "`"
+
+
+async def create_database(url: str | None = None) -> str:
+    """创建数据库（不存在时），返回库名。
+
+    Tortoise/aerich 只负责建表，不负责建库；该函数补齐这一步。
+    """
+    import asyncmy
+
+    cfg = parse_mysql_url(url or settings.database_url)
+    conn = await asyncmy.connect(
+        host=cfg["host"],
+        port=cfg["port"],
+        user=cfg["user"],
+        password=cfg["password"],
+    )
+    try:
+        async with conn.cursor() as cur:
+            await cur.execute(
+                f"CREATE DATABASE IF NOT EXISTS {_quote_ident(cfg['dbname'])} "
+                f"CHARACTER SET {cfg['charset']} COLLATE {cfg['charset']}_general_ci"
+            )
+        await conn.commit()
+    finally:
+        conn.close()
+    return cfg["dbname"]
+
+
+async def drop_database(url: str | None = None) -> str:
+    """删除数据库（不存在时忽略），返回库名。
+
+    仅用于评测/测试环境重建，调用方应先确认库名不是生产库。
+    """
+    import asyncmy
+
+    cfg = parse_mysql_url(url or settings.database_url)
+    conn = await asyncmy.connect(
+        host=cfg["host"],
+        port=cfg["port"],
+        user=cfg["user"],
+        password=cfg["password"],
+    )
+    try:
+        async with conn.cursor() as cur:
+            # 先判断是否存在，避免 MySQL 对 DROP IF EXISTS 输出 warning
+            await cur.execute(
+                "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = %s",
+                (cfg["dbname"],),
+            )
+            if await cur.fetchone():
+                await cur.execute(f"DROP DATABASE {_quote_ident(cfg['dbname'])}")
+        await conn.commit()
+    finally:
+        conn.close()
+    return cfg["dbname"]
 
 
 async def init_db(generate_schemas: bool = False) -> None:

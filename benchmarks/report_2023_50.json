@@ -1,0 +1,139 @@
+{
+  "meta": {
+    "db_name": "finreport_bench",
+    "year": 2023,
+    "limit": 50,
+    "llm_enabled": true,
+    "generated_at": "2026-10-21T06:44:05+08:00",
+    "pdf_dir": "./data/pdfs_bench",
+    "timings": {
+      "parse_s": 820.0,
+      "parse_per_report_s": 37.3
+    },
+    "timings_note": "效率口径：22 份复跑（含 LLM 缓存命中）耗时 820s，平均 37.3s/份；5 家冷启动冒烟平均 83.9s/份。"
+  },
+  "sample": {
+    "planned_limit": 50,
+    "companies": 50,
+    "by_market": {
+      "主板": 29,
+      "创业板": 11,
+      "北交所": 4,
+      "科创板": 6
+    },
+    "financial_companies": 5
+  },
+  "scale": {
+    "companies": 50,
+    "reports": 50,
+    "downloaded": 50,
+    "parsed": 50,
+    "statements": 293,
+    "items": 7558,
+    "distinct_item_codes": 98,
+    "derived_items": 109,
+    "avg_items_per_statement": 25.8,
+    "pdf_bytes_db": 217035002,
+    "pdf_bytes_disk": 217035002,
+    "db_bytes": 5423104,
+    "llm_cache_rows": 129
+  },
+  "reports": {
+    "total": 50,
+    "downloaded": 50,
+    "parsed": 50,
+    "passed": 45,
+    "needs_review": 5,
+    "failed": 0,
+    "download_rate": 100.0,
+    "parse_rate": 100.0
+  },
+  "statements": {
+    "total": 293,
+    "by_type": {
+      "bs/consolidated": {
+        "total": 49,
+        "rule": 45,
+        "llm": 4
+      },
+      "bs/parent": {
+        "total": 48,
+        "rule": 45,
+        "llm": 3
+      },
+      "cf/consolidated": {
+        "total": 49,
+        "rule": 40,
+        "llm": 9
+      },
+      "cf/parent": {
+        "total": 49,
+        "rule": 42,
+        "llm": 7
+      },
+      "is/consolidated": {
+        "total": 49,
+        "rule": 8,
+        "llm": 41
+      },
+      "is/parent": {
+        "total": 49,
+        "rule": 8,
+        "llm": 41
+      }
+    }
+  },
+  "quality": {
+    "rule_statements": 188,
+    "llm_statements": 105,
+    "rule_rate": 64.16,
+    "llm_rate": 35.84,
+    "final_pass_rate": 90.0,
+    "needs_review_rate": 10.0,
+    "core_coverage_avg": 91.13,
+    "core_coverage_min": 0.0,
+    "core_coverage_gte_80": 96.59,
+    "confidence": {
+      "avg": 0.969,
+      "median": 1.0,
+      "p25": 1.0,
+      "p75": 1.0,
+      "min": 0.0,
+      "max": 1.0,
+      "gte_0_8": 48,
+      "count": 50
+    },
+    "checks": {
+      "bs": {
+        "checked": 95,
+        "passed": 95,
+        "failed": 0,
+        "incomplete": 2,
+        "raw_checked": 64,
+        "raw_passed": 64,
+        "pass_rate": 100.0,
+        "raw_pass_rate": 100.0
+      },
+      "is": {
+        "checked": 89,
+        "passed": 89,
+        "failed": 0,
+        "incomplete": 9,
+        "raw_checked": 89,
+        "raw_passed": 89,
+        "pass_rate": 100.0,
+        "raw_pass_rate": 100.0
+      },
+      "cf": {
+        "checked": 96,
+        "passed": 96,
+        "failed": 0,
+        "incomplete": 2,
+        "raw_checked": 72,
+        "raw_passed": 72,
+        "pass_rate": 100.0,
+        "raw_pass_rate": 100.0
+      }
+    }
+  }
+}
