@@ -147,6 +147,44 @@ def parse_table_page(
     return items
 
 
+def _page_crop_bounds(page, key: tuple[str, str]):
+    """计算一页中属于当前报表的纵向范围。
+
+    同一页可能同时包含上一张表的尾部与下一张表的开头；按标题行裁剪，
+    避免把别的报表数据混进来。银行“合并xx表和xx表”并排页不裁剪。
+    """
+    current_top = None
+    other_top = None
+    combined = False
+    for line in page.extract_text_lines():
+        text = line.get("text", "")
+        keys, line_combined = StatementLocator._line_keys(text)
+        if not keys:
+            # 权益变动表开始处作为现金流量表的结束边界
+            if any(k in text for k in ("所有者权益变动表", "股东权益变动表")):
+                if other_top is None or line["top"] < other_top:
+                    other_top = line["top"]
+            continue
+        others = keys - {key}
+        if key in keys and current_top is None:
+            current_top = line["top"]
+        if others:
+            if line_combined and all(k[0] == key[0] for k in others):
+                combined = True
+            elif other_top is None:
+                other_top = line["top"]
+    if combined:
+        return None
+    top = current_top if current_top is not None else 0
+    if other_top is not None and (current_top is None or other_top > current_top):
+        bottom = other_top
+    else:
+        bottom = page.height
+    if top >= bottom:
+        return None
+    return (0, top, page.width, bottom)
+
+
 def parse_tables(
     pdf_path: str,
     stype: StatementType,
@@ -162,10 +200,16 @@ def parse_tables(
     start, end = page_range
     result = ParseResult(statement_type=stype, scope=scope, page_range=f"{start}-{end}")
     raw_rows = 0
+    key = (stype.value, scope)
     try:
         with pdfplumber.open(pdf_path) as pdf:
             for idx in range(start - 1, min(end, len(pdf.pages))):
                 page = pdf.pages[idx]
+                bbox = _page_crop_bounds(page, key)
+                if bbox:
+                    page = page.crop(bbox)
+                    if page.height <= 1 or page.width <= 1:
+                        continue
                 tables = page.extract_tables() or []
                 for table in tables:
                     raw_rows += len(table)
@@ -176,6 +220,6 @@ def parse_tables(
         )
 
     locator = locator or StatementLocator(pdf_path)
-    result.unit = detect_unit(locator.page_text(start, end))
+    result.unit = detect_unit(locator.page_text(start, end, key=key))
     result.raw_rows = raw_rows
     return result

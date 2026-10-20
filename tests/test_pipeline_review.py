@@ -31,7 +31,7 @@ class _FakeLocator:
     def locate(self):
         return {("bs", "consolidated"): (1, 1)}
 
-    def page_text(self, start, end):
+    def page_text(self, start, end, key=None):
         return ""
 
 

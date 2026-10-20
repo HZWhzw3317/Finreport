@@ -70,7 +70,7 @@ def parse_text(
     """
     start, end = page_range
     locator = locator or StatementLocator(pdf_path)
-    text = locator.page_text(start, end)
+    text = locator.page_text(start, end, key=(stype.value, scope))
     result = ParseResult(
         statement_type=stype,
         scope=scope,

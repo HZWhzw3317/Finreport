@@ -158,10 +158,22 @@ def _merge_results(rule: ParseResult, llm: ParseResult) -> ParseResult:
         if item.item_code and item.item_code not in by_code:
             by_code[item.item_code] = item
             order.append(item.item_code)
-    for item in llm.items:  # 再用 LLM 补缺失的
-        if item.item_code and item.item_code not in by_code:
+    for item in llm.items:  # 再用 LLM 补缺失的科目，并回填规则的空值
+        if not item.item_code:
+            continue
+        existing = by_code.get(item.item_code)
+        if existing is None:
             by_code[item.item_code] = item
             order.append(item.item_code)
+            continue
+        # 规则阶段经常“匹配到科目但金额列为空”，此时用 LLM 的值回填，
+        # 否则最终入库仍是 null，而校验却按 LLM 结果通过了。
+        if existing.value_current is None and item.value_current is not None:
+            existing.value_current = item.value_current
+        if existing.value_previous is None and item.value_previous is not None:
+            existing.value_previous = item.value_previous
+        if not existing.item_name_std and item.item_name_std:
+            existing.item_name_std = item.item_name_std
     for idx, code in enumerate(order):
         by_code[code].sort_order = idx
     merged.items = [by_code[c] for c in order]
@@ -298,6 +310,10 @@ async def parse_report(
     report.parse_confidence = (
         round(sum(confidences) / len(confidences), 3) if confidences else 0.0
     )
+    # 一张报表都没定位到时，不能标记为 done（否则 0 置信度会被误认为通过）
+    if parsed == 0:
+        needs_review = True
+        report.error_message = "未定位到任何报表"
     report.needs_review = needs_review
     report.parse_status = (
         ParseStatus.needs_review.value if needs_review else ParseStatus.done.value

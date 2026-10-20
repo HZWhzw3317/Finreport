@@ -46,69 +46,110 @@ def _merge(*sources: ParseResult) -> list[ParsedItem]:
     return result + unmapped
 
 
-def _sub(a, b):
-    """安全相减：任一为 None 则返回 None。"""
-    return None if a is None or b is None else a - b
-
-
-def _add(a, b):
-    """安全相加：任一为 None 则返回 None。"""
-    return None if a is None or b is None else a + b
-
-
 def derive_missing(result: ParseResult) -> None:
     """用勾稽关系补齐缺失的合计数，并标记 ``is_derived=True``。
 
     规则：
         - 资产负债：资产总计 = 负债合计 + 所有者权益合计（缺哪补哪）
-        - 利润表：  净利润 = 利润总额 - |所得税费用|
-        - 现金流量：净增加额 = 经营 + 投资 + 筹资 净额
+        - 利润表：  净利润 = 利润总额 - 所得税费用
+        - 现金流量：分项净额 = 流入小计 - 流出小计；
+                    净增加额 = 经营 + 投资 + 筹资 + 汇率影响
+
+    注意：这里判断的是“值是否为空”，而不是“科目是否存在”。抽取器经常
+    会先匹配到科目、但金额列没取到（``value_current=None``），此时仍应补齐。
     """
     cm = result.code_map
     stype = result.statement_type
 
-    def add(code: str, name: str, cur, prev) -> None:
-        # 已存在或本期值缺失时不补
-        if code in cm or cur is None:
+    def value(code: str):
+        item = cm.get(code)
+        return item.value_current if item is not None else None
+
+    def previous(code: str):
+        item = cm.get(code)
+        return item.value_previous if item is not None else None
+
+    def add(code: str, name: str, cur, prev=None) -> None:
+        """写入推算值；若科目已存在但值为空，则原地补值。"""
+        if cur is None:
+            return
+        existing = cm.get(code)
+        if existing is not None:
+            if existing.value_current is None:
+                existing.value_current = cur
+                existing.value_previous = prev
+                existing.is_derived = True
             return
         result.items.append(
             ParsedItem(code, name, name, cur, prev, len(result.items), True)
         )
+        # 同步更新索引，后续推算（如先补三项净额、再补净增加额）才能看到新值
+        cm[code] = result.items[-1]
 
     if stype == StatementType.bs:
-        ta, tl, te = cm.get("total_assets"), cm.get("total_liabilities"), cm.get("total_equity")
-        if te is None and ta and tl:  # 缺所有者权益 -> 资产 - 负债
-            add(
-                "total_equity",
-                "所有者权益合计",
-                _sub(ta.value_current, tl.value_current),
-                _sub(ta.value_previous, tl.value_previous),
+        ta = value("total_assets")
+        tl = value("total_liabilities")
+        te = value("total_equity")
+        if te is None and ta is not None and tl is not None:
+            prev = (
+                previous("total_assets") - previous("total_liabilities")
+                if previous("total_assets") is not None
+                and previous("total_liabilities") is not None
+                else None
             )
-        if ta is None and tl and te:  # 缺资产总计 -> 负债 + 权益
-            add(
-                "total_assets",
-                "资产总计",
-                _add(tl.value_current, te.value_current),
-                _add(tl.value_previous, te.value_previous),
+            add("total_equity", "所有者权益合计", ta - tl, prev)
+        if ta is None and tl is not None and te is not None:
+            prev = (
+                previous("total_liabilities") + previous("total_equity")
+                if previous("total_liabilities") is not None
+                and previous("total_equity") is not None
+                else None
             )
+            add("total_assets", "资产总计", tl + te, prev)
     elif stype == StatementType.is_:
-        tp, tax, np_ = cm.get("total_profit"), cm.get("income_tax_expense"), cm.get("net_profit")
-        if np_ is None and tp and tax and tp.value_current is not None and tax.value_current is not None:
-            # 所得税费用在不同报表中可能以负号呈现，这里取绝对值
-            add("net_profit", "净利润", tp.value_current - abs(tax.value_current), None)
-    elif stype == StatementType.cf:
-        inc = cm.get("net_increase_in_cash")
-        parts = [
-            cm.get(c)
-            for c in ("net_cash_flow_operating", "net_cash_flow_investing", "net_cash_flow_financing")
-        ]
-        if inc is None and any(p and p.value_current is not None for p in parts):
-            add(
-                "net_increase_in_cash",
-                "现金及现金等价物净增加额",
-                sum(p.value_current for p in parts if p and p.value_current is not None),
-                None,
+        tp = value("total_profit")
+        tax = value("income_tax_expense")
+        np_ = value("net_profit")
+        if np_ is None and tp is not None and tax is not None:
+            prev = (
+                previous("total_profit") - previous("income_tax_expense")
+                if previous("total_profit") is not None
+                and previous("income_tax_expense") is not None
+                else None
             )
+            add("net_profit", "净利润", tp - tax, prev)
+    elif stype == StatementType.cf:
+        # 分项净额 = 流入小计 - 流出小计
+        for target, name, inflow, outflow in (
+            ("net_cash_flow_operating", "经营活动产生的现金流量净额", "operating_cash_inflow", "operating_cash_outflow"),
+            ("net_cash_flow_investing", "投资活动产生的现金流量净额", "investing_cash_inflow", "investing_cash_outflow"),
+            ("net_cash_flow_financing", "筹资活动产生的现金流量净额", "financing_cash_inflow", "financing_cash_outflow"),
+        ):
+            if value(target) is None:
+                in_value = value(inflow)
+                out_value = value(outflow)
+                if in_value is not None and out_value is not None:
+                    prev = (
+                        previous(inflow) - previous(outflow)
+                        if previous(inflow) is not None
+                        and previous(outflow) is not None
+                        else None
+                    )
+                    add(target, name, in_value - out_value, prev)
+
+        # 净增加额 = 经营 + 投资 + 筹资 + 汇率影响
+        inc = value("net_increase_in_cash")
+        parts = [
+            value(c)
+            for c in (
+                "net_cash_flow_operating",
+                "net_cash_flow_investing",
+                "net_cash_flow_financing",
+            )
+        ]
+        if inc is None and all(p is not None for p in parts):
+            fx = value("exchange_rate_effect") or 0
+            add("net_increase_in_cash", "现金及现金等价物净增加额", sum(parts) + fx)
 
 
 def extract_rule(

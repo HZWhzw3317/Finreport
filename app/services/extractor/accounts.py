@@ -121,16 +121,21 @@ IS_ITEMS = [
     ("credit_impairment_loss", "信用减值损失", [], False),
     ("asset_impairment_loss", "资产减值损失", [], False),
     ("asset_disposal_income", "资产处置收益", [], False),
-    ("operating_profit", "营业利润", [], True),
+    ("operating_profit", "营业利润", ["营业利润（亏损以“－”号填列）", "营业利润（亏损以“-”号填列）"], True),
     ("non_operating_income", "营业外收入", [], False),
     ("non_operating_expense", "营业外支出", [], False),
-    ("total_profit", "利润总额", [], True),
+    ("total_profit", "利润总额", ["利润总额（亏损总额以“－”号填列）", "利润总额（亏损总额以“-”号填列）"], True),
     ("income_tax_expense", "所得税费用", [], False),
-    ("net_profit", "净利润", [], True),
+    ("net_profit", "净利润", ["净利润（净亏损以“－”号填列）", "净利润（净亏损以“-”号填列）"], True),
     (
         "net_profit_attributable_to_parent",
         "归属于母公司所有者的净利润",
-        ["归属于母公司股东的净利润", "归属于上市公司股东的净利润"],
+        [
+            "归属于母公司股东的净利润",
+            "归属于上市公司股东的净利润",
+            "归属于母公司股东的净利润（净亏损以“－”号填列）",
+            "归属于母公司所有者的净利润（净亏损以“－”号填列）",
+        ],
         True,
     ),
     ("minority_profit", "少数股东损益", [], False),
@@ -205,8 +210,14 @@ STATEMENT_WORDS = {
     StatementType.cf: "现金流量表",
 }
 
-# 遇到这些关键词说明报表正文已结束（进入附注），用于限定报表页范围
-STOP_KEYWORDS = ["财务报表附注", "合并财务报表项目注释", "母公司财务报表主要项目注释"]
+# 遇到这些关键词说明报表正文已结束（进入附注/权益变动表），用于限定报表页范围
+STOP_KEYWORDS = [
+    "财务报表附注",
+    "合并财务报表项目注释",
+    "母公司财务报表主要项目注释",
+    "所有者权益变动表",
+    "股东权益变动表",
+]
 
 
 def iter_accounts(stype: StatementType):

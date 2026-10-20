@@ -47,21 +47,30 @@ class Validator:
         stype = result.statement_type
         reasons: list[str] = []
         core = self.normalizer.core_codes(stype)
-        codes = set(result.code_map.keys())
+        # 只有“有编码且取到金额”的科目才算有效；编码存在但值为空
+        # 常见于跨行/跨页金额没对齐，不能计入覆盖率。
+        codes = {
+            code
+            for code, item in result.code_map.items()
+            if item.value_current is not None
+        }
         missing = sorted(core - codes)  # 缺失的核心科目
+        # 银行/证券报表常以“营业总收入”作为营业收入，视为满足 operating_revenue
+        if stype == StatementType.is_ and "total_operating_revenue" in codes:
+            missing = [c for c in missing if c != "operating_revenue"]
 
         # ---- 数量/覆盖类检查 ----
         if any(i.item_name_raw.startswith("__parse_error__") for i in result.items):
             reasons.append("parse_exception")
         if not result.items:
             reasons.append("empty_items")
-        if len(result.code_map) < settings.rule_min_items:
+        if len(codes) < settings.rule_min_items:
             reasons.append("too_few_items")
         if not result.page_range:
             reasons.append("no_page_range")
         if core and (len(missing) / len(core)) > settings.core_missing_ratio:
             reasons.append("core_missing")
-        if result.raw_rows and len(result.code_map) / max(result.raw_rows, 1) < 0.15:
+        if result.raw_rows and len(codes) / max(result.raw_rows, 1) < 0.15:
             reasons.append("row_align")
 
         # ---- 勾稽关系检查 ----
@@ -75,22 +84,25 @@ class Validator:
             np_ = _val(result, "net_profit")
             tp = _val(result, "total_profit")
             tax = _val(result, "income_tax_expense")
-            # 所得税费用取绝对值，兼容报表中以负号列示的写法
-            if np_ is not None and tp is not None and tax is not None and not _close(np_, tp - abs(tax)):
+            # 兼容两种列示口径：
+            #   1) 带符号：净利润 = 利润总额 - 所得税费用（负数表示所得税收益）
+            #   2) 括号表示费用：净利润 = 利润总额 - |所得税费用|
+            if np_ is not None and tp is not None and tax is not None and not (
+                _close(np_, tp - tax) or _close(np_, tp - abs(tax))
+            ):
                 reasons.append("is_profit_failed")
         elif stype == StatementType.cf:
             inc = _val(result, "net_increase_in_cash")
-            net = sum(
-                v
-                for v in (
-                    _val(result, "net_cash_flow_operating"),
-                    _val(result, "net_cash_flow_investing"),
-                    _val(result, "net_cash_flow_financing"),
-                )
-                if v is not None
-            )
-            if inc is not None and net != 0 and not _close(inc, net):
-                reasons.append("cf_failed")
+            op = _val(result, "net_cash_flow_operating")
+            inv = _val(result, "net_cash_flow_investing")
+            fin = _val(result, "net_cash_flow_financing")
+            fx = _val(result, "exchange_rate_effect") or 0
+            # 只有经营/投资/筹资三项齐全时才校验，避免缺项导致误判；
+            # 汇率变动影响为可选项（没有则按 0 处理）。
+            if inc is not None and all(v is not None for v in (op, inv, fin)):
+                net = op + inv + fin + fx
+                if net != 0 and not _close(inc, net):
+                    reasons.append("cf_failed")
 
         # ---- 由问题码累计扣分得到置信度 ----
         penalties = {

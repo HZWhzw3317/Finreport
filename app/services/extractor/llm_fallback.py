@@ -23,12 +23,15 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import settings
 from app.enums import StatementType
-from app.services.extractor.accounts import iter_accounts
+from app.services.extractor.accounts import STATEMENT_WORDS, iter_accounts
 from app.services.extractor.normalizer import AccountNormalizer
 from app.services.extractor.numbers import parse_amount
 from app.services.extractor.result import ParsedItem, ParseResult
 
 logger = logging.getLogger(__name__)
+
+# 提示词版本：修改提示词后递增，使旧缓存自动失效
+_PROMPT_VERSION = "v2"
 
 # 系统提示：限定角色与输出格式，强调“不得编造”
 _SYSTEM_PROMPT = (
@@ -64,8 +67,13 @@ def _build_user_prompt(stype: StatementType, scope: str, unit_hint: str) -> str:
     return (
         f"请抽取【{scope_cn}】报表（statement_type={stype.value}）的数据。\n"
         f"页面中若包含多张报表，只取该类型报表；金额单位参考页面标注（当前识别为 {unit_hint}）。\n"
-        "数值规则：括号表示负数；千分位去掉；空值用 null。value_current 为本期/期末，"
-        "value_previous 为上期/期初。\n\n"
+        f"如果页面顶部是上一张报表的尾部，请只从【{scope_cn}{STATEMENT_WORDS[stype]}】标题行开始；"
+        "如果页面底部出现下一张报表标题，忽略其后的内容。\n"
+        "必须抽取报表底部的合计/净额行（经营活动净额、投资活动净额、筹资活动净额、"
+        "现金净增加额、期初/期末余额），即使它们位于页面末尾。\n"
+        "数值规则：括号表示负数；但行首为“减：”（如所得税费用）时，括号金额按正数费用处理；"
+        "若金额本身带负号，则按负数处理。千分位去掉；空值用 null。"
+        "value_current 为本期/期末，value_previous 为上期/期初。\n\n"
         "标准科目对照表（优先使用下列 item_code，若不在表中则 item_code 填 null，"
         "并把原始科目名写入 item_name）：\n"
         f"{codes}\n\n"
@@ -161,7 +169,7 @@ def _cache_key(
     键 = ``sha256(file_hash|报表类型|口径|页区间|模型)``，固定 64 字符，
     既保证唯一又不会超过 ``LlmCache.cache_key`` 的 128 长度上限。
     """
-    raw = f"{file_hash}|{stype.value}|{scope}|{start}-{end}|{settings.llm_model}"
+    raw = f"{file_hash}|{stype.value}|{scope}|{start}-{end}|{settings.llm_model}|{_PROMPT_VERSION}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
